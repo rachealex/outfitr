@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { FEEDBACK_TAGS } from './Today'
 
 function formatDate(dateStr) {
   if (!dateStr) return ''
@@ -21,10 +22,23 @@ function MoodBadge({ mood }) {
   )
 }
 
+// Build a stable key from the item IDs in an outfit so we can match
+// history entries to their feedback records.
+function feedbackKey(items) {
+  return (items || []).map(i => i.id).filter(Boolean).sort().join(',')
+}
+
 export default function History() {
   const [entries, setEntries] = useState([])
   const [clothes, setClothes] = useState([])
+  const [feedback, setFeedback] = useState([])
   const [loading, setLoading] = useState(true)
+
+  // Inline feedback-form state
+  const [openFeedbackId, setOpenFeedbackId] = useState(null)
+  const [quickLiked, setQuickLiked] = useState(null)
+  const [quickTags, setQuickTags] = useState([])
+  const [savingId, setSavingId] = useState(null)
 
   useEffect(() => {
     fetchAll()
@@ -32,12 +46,14 @@ export default function History() {
 
   async function fetchAll() {
     setLoading(true)
-    const [{ data: history }, { data: clothesData }] = await Promise.all([
+    const [{ data: history }, { data: clothesData }, { data: feedbackData }] = await Promise.all([
       supabase.from('outfit_history').select('*').order('date', { ascending: false }),
       supabase.from('clothes').select('*').order('times_worn', { ascending: false }),
+      supabase.from('outfit_feedback').select('*').catch(() => ({ data: [] })),
     ])
     setEntries(history || [])
     setClothes(clothesData || [])
+    setFeedback(feedbackData || [])
     setLoading(false)
   }
 
@@ -54,6 +70,60 @@ export default function History() {
       }
       return oi
     }).filter(Boolean)
+  }
+
+  // Build a lookup: feedbackKey → feedback record
+  const feedbackMap = feedback.reduce((map, f) => {
+    const key = feedbackKey(f.outfit_items)
+    if (key) map[key] = f
+    return map
+  }, {})
+
+  async function handleSaveQuickFeedback(entry) {
+    if (quickLiked === null && quickTags.length === 0) return
+    setSavingId(entry.id)
+    try {
+      const { error } = await supabase.from('outfit_feedback').insert([{
+        outfit_items: entry.outfit_items,
+        mood: entry.mood,
+        weather_tier: null,
+        liked: quickLiked,
+        tags: quickTags,
+        notes: null,
+      }])
+
+      if (!error && quickLiked !== null) {
+        const delta = quickLiked ? 1 : -1
+        for (const item of (entry.outfit_items || [])) {
+          if (!item.id) continue
+          const { data: existing } = await supabase
+            .from('item_scores')
+            .select('score')
+            .eq('item_id', item.id)
+            .maybeSingle()
+          const newScore = (existing?.score || 0) + delta
+          await supabase.from('item_scores').upsert(
+            { item_id: item.id, score: newScore, updated_at: new Date().toISOString() },
+            { onConflict: 'item_id' }
+          )
+        }
+      }
+
+      setOpenFeedbackId(null)
+      setQuickLiked(null)
+      setQuickTags([])
+      await fetchAll()
+    } catch (e) {
+      // silently ignore
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  function openForm(entryId) {
+    setOpenFeedbackId(entryId)
+    setQuickLiked(null)
+    setQuickTags([])
   }
 
   const topWorn = [...clothes]
@@ -82,8 +152,13 @@ export default function History() {
         <div className="space-y-4 mb-10 fade-up">
           {entries.map((entry) => {
             const items = resolveItems(entry.outfit_items)
+            const key = feedbackKey(entry.outfit_items)
+            const fb = feedbackMap[key]
+            const isFormOpen = openFeedbackId === entry.id
+
             return (
               <div key={entry.id} className="bg-charcoal rounded-xl p-4 border border-white/5">
+                {/* Header */}
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="text-ivory font-medium text-sm">{formatDate(entry.date)}</div>
@@ -96,7 +171,7 @@ export default function History() {
                   {entry.mood && <MoodBadge mood={entry.mood} />}
                 </div>
 
-                {/* Outfit item thumbnails */}
+                {/* Item thumbnails */}
                 {items.length > 0 && (
                   <div className="flex gap-2 flex-wrap">
                     {items.map((item, i) => (
@@ -115,6 +190,96 @@ export default function History() {
                         </span>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Feedback display or form */}
+                {fb ? (
+                  // Existing feedback
+                  <div className="mt-3 pt-3 border-t border-white/5 flex items-center flex-wrap gap-2">
+                    {fb.liked === true && <span className="text-base leading-none">👍</span>}
+                    {fb.liked === false && <span className="text-base leading-none">👎</span>}
+                    {(fb.tags || []).map(tag => (
+                      <span
+                        key={tag}
+                        className="text-xs px-2 py-0.5 rounded-full bg-gold/10 text-gold/70 border border-gold/20"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {fb.notes && (
+                      <span className="text-muted text-xs italic">"{fb.notes}"</span>
+                    )}
+                  </div>
+                ) : isFormOpen ? (
+                  // Inline mini feedback form
+                  <div className="mt-3 pt-3 border-t border-white/5">
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        onClick={() => setQuickLiked(quickLiked === true ? null : true)}
+                        className={`flex-1 py-2 rounded-lg border text-sm transition-all duration-200 ${
+                          quickLiked === true
+                            ? 'border-gold bg-gold/20 text-gold'
+                            : 'border-white/10 text-muted hover:border-white/30'
+                        }`}
+                      >
+                        👍 Loved it
+                      </button>
+                      <button
+                        onClick={() => setQuickLiked(quickLiked === false ? null : false)}
+                        className={`flex-1 py-2 rounded-lg border text-sm transition-all duration-200 ${
+                          quickLiked === false
+                            ? 'border-rust bg-rust/20 text-rust'
+                            : 'border-white/10 text-muted hover:border-white/30'
+                        }`}
+                      >
+                        👎 Not for me
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {FEEDBACK_TAGS.map(tag => (
+                        <button
+                          key={tag}
+                          onClick={() => setQuickTags(prev =>
+                            prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                          )}
+                          className={`px-2.5 py-1 rounded-full text-xs border transition-all duration-200 ${
+                            quickTags.includes(tag)
+                              ? 'bg-gold/20 border-gold/50 text-gold'
+                              : 'border-white/10 text-muted hover:border-white/20 hover:text-ivory'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setOpenFeedbackId(null); setQuickLiked(null); setQuickTags([]) }}
+                        className="px-3 py-1.5 text-xs text-muted border border-white/10 rounded-lg hover:border-white/20 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => handleSaveQuickFeedback(entry)}
+                        disabled={savingId === entry.id || (quickLiked === null && quickTags.length === 0)}
+                        className="flex-1 py-1.5 text-xs bg-gold hover:bg-gold/90 text-white rounded-lg disabled:opacity-40 transition-all duration-200"
+                      >
+                        {savingId === entry.id ? 'Saving…' : 'Save Feedback'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // No feedback yet — prompt
+                  <div className="mt-3 pt-3 border-t border-white/5">
+                    <button
+                      onClick={() => openForm(entry.id)}
+                      className="text-muted/50 text-xs hover:text-gold transition-colors duration-200"
+                    >
+                      + Rate this outfit
+                    </button>
                   </div>
                 )}
               </div>

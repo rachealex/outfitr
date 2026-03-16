@@ -26,10 +26,6 @@ function getWeatherInfo(code) {
   return WEATHER_CODES[code] || { label: 'Unknown', icon: '🌡️' }
 }
 
-function celsiusToFahrenheit(c) {
-  return Math.round(c * 9/5 + 32)
-}
-
 function getGreeting() {
   const h = new Date().getHours()
   if (h < 12) return 'Good morning'
@@ -44,12 +40,13 @@ function getWeatherTier(tempF) {
   return 'hot'
 }
 
-function formatForecastDate(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00')
-  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-}
-
 const MOODS = ['Corporate Goth', 'Emo/Punk', 'Casual Dark', 'Surprise Me']
+
+export const FEEDBACK_TAGS = [
+  'Love it', 'Too casual', 'Too formal', 'Wrong season',
+  'Swap the shoes', 'Swap the top', 'Swap the bottom',
+  'Great combination', 'Not my style',
+]
 
 function getStyleTip(tier, mood) {
   const tips = {
@@ -81,7 +78,7 @@ function getStyleTip(tier, mood) {
   return tips[tier]?.[mood] || tips[tier]?.['Surprise Me'] || ''
 }
 
-function pickOutfit(clothes, tempF, mood) {
+function pickOutfit(clothes, tempF, mood, scores = {}, dislikedCombos = []) {
   const tier = getWeatherTier(tempF)
   const isWarm = tempF >= 60
 
@@ -98,7 +95,6 @@ function pickOutfit(clothes, tempF, mood) {
 
   const seasonPref = isWarm ? ['Spring/Summer', 'All'] : ['Fall/Winter', 'All']
 
-  // Try to get category items, fall back to all items in that category if seasonal filter empty
   const getItems = (cats) => {
     const seasonal = filter(cats, seasonPref)
     if (seasonal.length > 0) return seasonal
@@ -115,48 +111,88 @@ function pickOutfit(clothes, tempF, mood) {
   const outerwear = getItems(['Outerwear'])
   const accessories = clothes.filter(c => c.category === 'Accessories')
 
-  const pick = (arr) => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : null
+  // Weighted random pick — liked items surface more often, disliked items less
+  const pick = (arr) => {
+    if (arr.length === 0) return null
+    const weights = arr.map(item => Math.max(0.2, 1 + (scores[item.id] || 0) * 0.25))
+    const total = weights.reduce((a, b) => a + b, 0)
+    let r = Math.random() * total
+    for (let i = 0; i < arr.length; i++) {
+      r -= weights[i]
+      if (r <= 0) return arr[i]
+    }
+    return arr[arr.length - 1]
+  }
+
   const maybe = (arr, chance = 0.6) => Math.random() < chance ? pick(arr) : null
 
-  let selected = []
+  function generate() {
+    let selected = []
+    const useDress = dresses.length > 0 && (tops.length === 0 || Math.random() < 0.3)
 
-  // Decide top/bottom or dress
-  const useDress = dresses.length > 0 && (tops.length === 0 || Math.random() < 0.3)
+    if (useDress) {
+      const dress = pick(dresses)
+      if (dress) selected.push(dress)
+    } else {
+      const top = pick(tops)
+      if (top) selected.push(top)
+      const bottom = pick(bottoms)
+      if (bottom) selected.push(bottom)
+    }
 
-  if (useDress) {
-    const dress = pick(dresses)
-    if (dress) selected.push(dress)
-  } else {
-    const top = pick(tops)
-    if (top) selected.push(top)
-    const bottom = pick(bottoms)
-    if (bottom) selected.push(bottom)
+    let shoe = null
+    if (tier === 'cold') {
+      shoe = pick(boots) || pick(heels) || pick(sneakers)
+    } else if (tier === 'cool') {
+      shoe = pick([...boots, ...heels]) || pick(sneakers)
+    } else if (tier === 'warm') {
+      shoe = pick([...heels, ...sneakers]) || pick(boots)
+    } else {
+      shoe = pick([...sandals, ...heels]) || pick(sneakers)
+    }
+    if (shoe) selected.push(shoe)
+
+    if (tier === 'cold' || tier === 'cool') {
+      const outer = maybe(outerwear, tier === 'cold' ? 0.9 : 0.6)
+      if (outer) selected.push(outer)
+    }
+
+    const acc = maybe(accessories, 0.5)
+    if (acc) selected.push(acc)
+
+    return selected.filter(Boolean)
   }
 
-  // Shoes based on tier
-  let shoe = null
-  if (tier === 'cold') {
-    shoe = pick(boots) || pick(heels) || pick(sneakers)
-  } else if (tier === 'cool') {
-    shoe = pick([...boots, ...heels]) || pick(sneakers)
-  } else if (tier === 'warm') {
-    shoe = pick([...heels, ...sneakers]) || pick(boots)
-  } else {
-    shoe = pick([...sandals, ...heels]) || pick(sneakers)
-  }
-  if (shoe) selected.push(shoe)
-
-  // Outerwear if cold/cool
-  if (tier === 'cold' || tier === 'cool') {
-    const outer = maybe(outerwear, tier === 'cold' ? 0.9 : 0.6)
-    if (outer) selected.push(outer)
+  // If the combo was previously disliked, try regenerating (up to 3 attempts)
+  function isDisliked(outfit) {
+    if (!dislikedCombos.length || outfit.length < 2) return false
+    const ids = new Set(outfit.map(i => i.id))
+    return dislikedCombos.some(combo => {
+      if (combo.length < 2) return false
+      const overlap = combo.filter(id => ids.has(id))
+      return overlap.length >= Math.min(3, combo.length)
+    })
   }
 
-  // Accessory
-  const acc = maybe(accessories, 0.5)
-  if (acc) selected.push(acc)
+  let result = generate()
+  for (let attempt = 0; attempt < 3 && isDisliked(result); attempt++) {
+    result = generate()
+  }
+  return result
+}
 
-  return selected.filter(Boolean)
+const CATEGORY_COLORS = {
+  Tops: 'bg-rust/80',
+  Sweaters: 'bg-rust/60',
+  Bottoms: 'bg-moss/80',
+  Skirts: 'bg-moss/60',
+  'Dresses/Jumpsuits': 'bg-rust/70',
+  Outerwear: 'bg-muted/60',
+  Boots: 'bg-gold/40',
+  Heels: 'bg-gold/50',
+  Sneakers: 'bg-gold/30',
+  Sandals: 'bg-gold/20',
+  Accessories: 'bg-muted/40',
 }
 
 export default function Today() {
@@ -170,9 +206,23 @@ export default function Today() {
   const [toast, setToast] = useState(null)
   const [logging, setLogging] = useState(false)
 
+  // Learning system state
+  const [itemScores, setItemScores] = useState({})
+  const [dislikedCombos, setDislikedCombos] = useState([])
+
+  // Feedback form state
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const [feedbackLiked, setFeedbackLiked] = useState(null) // true | false | null
+  const [feedbackTags, setFeedbackTags] = useState([])
+  const [feedbackNotes, setFeedbackNotes] = useState('')
+  const [savingFeedback, setSavingFeedback] = useState(false)
+  const [feedbackSaved, setFeedbackSaved] = useState(false)
+
   useEffect(() => {
     fetchWeather()
     fetchClothes()
+    fetchItemScores()
+    fetchDislikedCombos()
   }, [])
 
   async function fetchWeather() {
@@ -206,10 +256,45 @@ export default function Today() {
     setAllClothes(data || [])
   }
 
+  async function fetchItemScores() {
+    try {
+      const { data } = await supabase.from('item_scores').select('item_id, score')
+      if (data) {
+        const map = {}
+        data.forEach(row => { map[row.item_id] = row.score })
+        setItemScores(map)
+      }
+    } catch (e) {
+      // Table may not exist yet — silently ignore
+    }
+  }
+
+  async function fetchDislikedCombos() {
+    try {
+      const { data } = await supabase
+        .from('outfit_feedback')
+        .select('outfit_items')
+        .eq('liked', false)
+      if (data) {
+        setDislikedCombos(
+          data.map(row => (row.outfit_items || []).map(i => i.id).filter(Boolean))
+        )
+      }
+    } catch (e) {
+      // Table may not exist yet — silently ignore
+    }
+  }
+
   function handleGenerate() {
     setGenerating(true)
+    // Reset feedback state for the new outfit
+    setFeedbackOpen(false)
+    setFeedbackLiked(null)
+    setFeedbackTags([])
+    setFeedbackNotes('')
+    setFeedbackSaved(false)
     setTimeout(() => {
-      const selected = pickOutfit(allClothes, weather?.tempF ?? 65, mood)
+      const selected = pickOutfit(allClothes, weather?.tempF ?? 65, mood, itemScores, dislikedCombos)
       setOutfit(selected)
       setGenerating(false)
     }, 300)
@@ -228,7 +313,6 @@ export default function Today() {
       }])
 
       if (!error) {
-        // Increment wear count for each item
         for (const item of outfit) {
           await supabase
             .from('clothes')
@@ -244,6 +328,57 @@ export default function Today() {
     } finally {
       setLogging(false)
     }
+  }
+
+  async function handleSaveFeedback() {
+    if (feedbackLiked === null && feedbackTags.length === 0 && !feedbackNotes.trim()) return
+    setSavingFeedback(true)
+    try {
+      const { error } = await supabase.from('outfit_feedback').insert([{
+        outfit_items: outfit.map(item => ({ id: item.id, name: item.name, category: item.category })),
+        mood,
+        weather_tier: tier,
+        liked: feedbackLiked,
+        tags: feedbackTags,
+        notes: feedbackNotes.trim() || null,
+      }])
+
+      if (!error) {
+        if (feedbackLiked !== null) {
+          const delta = feedbackLiked ? 1 : -1
+          const updatedScores = { ...itemScores }
+
+          for (const item of outfit) {
+            const newScore = (updatedScores[item.id] || 0) + delta
+            updatedScores[item.id] = newScore
+            await supabase.from('item_scores').upsert(
+              { item_id: item.id, score: newScore, updated_at: new Date().toISOString() },
+              { onConflict: 'item_id' }
+            )
+          }
+          setItemScores(updatedScores)
+
+          if (!feedbackLiked) {
+            setDislikedCombos(prev => [...prev, outfit.map(i => i.id)])
+          }
+        }
+
+        setFeedbackSaved(true)
+        setFeedbackOpen(false)
+      } else {
+        showToast('Error saving feedback.')
+      }
+    } catch (e) {
+      showToast('Error saving feedback.')
+    } finally {
+      setSavingFeedback(false)
+    }
+  }
+
+  function toggleTag(tag) {
+    setFeedbackTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
   }
 
   function showToast(msg) {
@@ -262,19 +397,7 @@ export default function Today() {
     hot: 'text-orange-400',
   }
 
-  const CATEGORY_COLORS = {
-    Tops: 'bg-rust/80',
-    Sweaters: 'bg-rust/60',
-    Bottoms: 'bg-moss/80',
-    Skirts: 'bg-moss/60',
-    'Dresses/Jumpsuits': 'bg-rust/70',
-    Outerwear: 'bg-muted/60',
-    Boots: 'bg-gold/40',
-    Heels: 'bg-gold/50',
-    Sneakers: 'bg-gold/30',
-    Sandals: 'bg-gold/20',
-    Accessories: 'bg-muted/40',
-  }
+  const canSaveFeedback = feedbackLiked !== null || feedbackTags.length > 0 || feedbackNotes.trim()
 
   return (
     <div className="min-h-screen bg-ink text-ivory px-4 pt-6 pb-28 md:pt-20 md:pb-10 max-w-2xl mx-auto fade-up">
@@ -311,7 +434,6 @@ export default function Today() {
                 </div>
               </div>
             </div>
-            {/* 4-day forecast */}
             <div className="grid grid-cols-4 gap-2">
               {forecast.slice(0, 4).map((day, i) => {
                 const fc = getWeatherInfo(day.code)
@@ -372,6 +494,7 @@ export default function Today() {
               ↺ Shuffle
             </button>
           </div>
+
           <div className="grid grid-cols-2 gap-3 mb-4">
             {outfit.map((item, i) => (
               <div key={item.id || i} className="bg-charcoal rounded-xl overflow-hidden border border-white/5">
@@ -411,10 +534,95 @@ export default function Today() {
           <button
             onClick={handleWear}
             disabled={logging}
-            className="w-full bg-rust hover:bg-rust/90 text-ivory font-semibold py-3 rounded-xl transition-all duration-200 disabled:opacity-50"
+            className="w-full bg-rust hover:bg-rust/90 text-ivory font-semibold py-3 rounded-xl transition-all duration-200 disabled:opacity-50 mb-4"
           >
             {logging ? 'Logging…' : '✓ Wear This Outfit'}
           </button>
+
+          {/* ── Feedback Section ── */}
+          {feedbackSaved ? (
+            <div className="text-center py-2">
+              <span className="text-gold/70 text-sm">✓ Feedback saved — Outfitr is learning your style</span>
+            </div>
+          ) : !feedbackOpen ? (
+            <button
+              onClick={() => setFeedbackOpen(true)}
+              className="w-full text-center text-muted/60 text-sm hover:text-gold transition-colors duration-200 py-1"
+            >
+              Rate this outfit ↓
+            </button>
+          ) : (
+            <div className="bg-charcoal/60 border border-white/10 rounded-xl p-4 fade-up">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-serif text-base text-ivory">How did this feel?</h3>
+                <button
+                  onClick={() => setFeedbackOpen(false)}
+                  className="text-muted hover:text-ivory text-2xl leading-none w-8 h-8 flex items-center justify-center"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Thumbs up / down */}
+              <div className="flex gap-3 mb-4">
+                <button
+                  onClick={() => setFeedbackLiked(feedbackLiked === true ? null : true)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
+                    feedbackLiked === true
+                      ? 'border-gold bg-gold/20 text-gold'
+                      : 'border-white/10 text-muted hover:border-white/30 hover:text-ivory'
+                  }`}
+                >
+                  <span className="text-base">👍</span> Loved it
+                </button>
+                <button
+                  onClick={() => setFeedbackLiked(feedbackLiked === false ? null : false)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium transition-all duration-200 ${
+                    feedbackLiked === false
+                      ? 'border-rust bg-rust/20 text-rust'
+                      : 'border-white/10 text-muted hover:border-white/30 hover:text-ivory'
+                  }`}
+                >
+                  <span className="text-base">👎</span> Not for me
+                </button>
+              </div>
+
+              {/* Quick-tag chips */}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {FEEDBACK_TAGS.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className={`px-3 py-1.5 rounded-full text-xs border transition-all duration-200 ${
+                      feedbackTags.includes(tag)
+                        ? 'bg-gold/20 border-gold/50 text-gold'
+                        : 'border-white/10 text-muted hover:border-white/30 hover:text-ivory'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+
+              {/* Notes */}
+              <textarea
+                value={feedbackNotes}
+                onChange={e => setFeedbackNotes(e.target.value)}
+                placeholder="Any other thoughts…"
+                rows={2}
+                className="w-full bg-ink/60 border border-white/10 rounded-xl px-3 py-2.5 text-ivory text-sm placeholder:text-muted resize-none mb-4 focus:outline-none focus:border-gold/40 transition-colors"
+              />
+
+              {/* Save */}
+              <button
+                onClick={handleSaveFeedback}
+                disabled={savingFeedback || !canSaveFeedback}
+                className="w-full bg-gold hover:bg-gold/90 text-white font-semibold py-2.5 rounded-xl transition-all duration-200 disabled:opacity-40 text-sm"
+              >
+                {savingFeedback ? 'Saving…' : 'Save Feedback'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

@@ -79,10 +79,56 @@ export default function Gaps() {
   const [loading, setLoading] = useState(true)
   const [wishlistAdded, setWishlistAdded] = useState({})
   const [toast, setToast] = useState(null)
+  const [insights, setInsights] = useState({ topLiked: [], dislikedCount: 0, topTags: [] })
 
   useEffect(() => {
-    fetchClothes()
+    fetchAll()
   }, [])
+
+  async function fetchAll() {
+    setLoading(true)
+    const { data: clothesData } = await supabase.from('clothes').select('*')
+    const clothesList = clothesData || []
+    setClothes(clothesList)
+
+    try {
+      const [{ data: scoresData }, { data: feedbackData }] = await Promise.all([
+        supabase.from('item_scores').select('item_id, score').order('score', { ascending: false }),
+        supabase.from('outfit_feedback').select('liked, tags'),
+      ])
+
+      // Top 3 items with positive scores, resolved to clothing names
+      const topLiked = (scoresData || [])
+        .filter(s => s.score > 0)
+        .slice(0, 3)
+        .map(s => {
+          const item = clothesList.find(c => c.id === s.item_id)
+          return item ? { ...item, score: s.score } : null
+        })
+        .filter(Boolean)
+
+      // Count disliked outfits
+      const dislikedCount = (feedbackData || []).filter(f => f.liked === false).length
+
+      // Tag frequency across all feedback
+      const tagCounts = {}
+      ;(feedbackData || []).forEach(f => {
+        ;(f.tags || []).forEach(tag => {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1
+        })
+      })
+      const topTags = Object.entries(tagCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([tag, count]) => ({ tag, count }))
+
+      setInsights({ topLiked, dislikedCount, topTags })
+    } catch (e) {
+      // Tables may not exist yet — show no insights
+    }
+
+    setLoading(false)
+  }
 
   async function fetchClothes() {
     setLoading(true)
@@ -154,6 +200,57 @@ export default function Gaps() {
           <div className="text-muted text-xs mt-1">Times Worn</div>
         </div>
       </div>
+
+      {/* Style Insights — only shown when there's feedback data */}
+      {(insights.topLiked.length > 0 || insights.dislikedCount > 0 || insights.topTags.length > 0) && (
+        <div className="bg-charcoal rounded-xl p-4 mb-6 border border-gold/20">
+          <h2 className="font-serif text-lg text-ivory mb-4 flex items-center gap-2">
+            <span className="text-gold">✦</span> Style Insights
+          </h2>
+
+          {insights.topLiked.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-gold text-xs font-semibold uppercase tracking-wide mb-2">Your Most Loved Items</h3>
+              <div className="space-y-2">
+                {insights.topLiked.map((item, i) => (
+                  <div key={item.id} className="flex items-center gap-2">
+                    <span className="text-muted text-xs w-4 shrink-0">#{i + 1}</span>
+                    <span className="text-ivory text-sm flex-1 truncate">{item.name}</span>
+                    <span className="text-muted text-xs shrink-0">{item.category}</span>
+                    <span className="text-gold text-xs font-medium shrink-0 ml-1">+{item.score}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {insights.dislikedCount > 0 && (
+            <div className={insights.topTags.length > 0 ? 'mb-4' : ''}>
+              <h3 className="text-gold text-xs font-semibold uppercase tracking-wide mb-1">Avoided Combinations</h3>
+              <p className="text-muted text-xs leading-relaxed">
+                {insights.dislikedCount} outfit{insights.dislikedCount !== 1 ? 's' : ''} marked as not working.
+                Outfitr will avoid repeating those combinations.
+              </p>
+            </div>
+          )}
+
+          {insights.topTags.length > 0 && (
+            <div>
+              <h3 className="text-gold text-xs font-semibold uppercase tracking-wide mb-2">Most Used Feedback</h3>
+              <div className="flex flex-wrap gap-2">
+                {insights.topTags.map(({ tag, count }) => (
+                  <span
+                    key={tag}
+                    className="px-2.5 py-1 rounded-full text-xs border border-white/10 text-muted"
+                  >
+                    {tag} <span className="text-gold">×{count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-10">

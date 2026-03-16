@@ -98,6 +98,32 @@ const tables = [
       );
     `,
   },
+  {
+    name: 'outfit_feedback',
+    sql: `
+      CREATE TABLE IF NOT EXISTS outfit_feedback (
+        id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+        outfit_items jsonb DEFAULT '[]'::jsonb,
+        mood text,
+        weather_tier text,
+        liked boolean,
+        tags text[] DEFAULT '{}',
+        notes text,
+        created_at timestamptz DEFAULT now()
+      );
+    `,
+  },
+  {
+    name: 'item_scores',
+    sql: `
+      CREATE TABLE IF NOT EXISTS item_scores (
+        id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+        item_id text NOT NULL UNIQUE,
+        score integer DEFAULT 0,
+        updated_at timestamptz DEFAULT now()
+      );
+    `,
+  },
 ]
 
 // Enable RLS and add permissive policies so the anon key can read/write
@@ -106,6 +132,8 @@ const rlsPolicies = `
   ALTER TABLE clothes ENABLE ROW LEVEL SECURITY;
   ALTER TABLE outfit_history ENABLE ROW LEVEL SECURITY;
   ALTER TABLE wishlist ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE outfit_feedback ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE item_scores ENABLE ROW LEVEL SECURITY;
 
   -- Allow all operations for anon (single-user app, no auth)
   DO $$
@@ -118,6 +146,12 @@ const rlsPolicies = `
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'wishlist' AND policyname = 'allow_all_wishlist') THEN
       CREATE POLICY allow_all_wishlist ON wishlist FOR ALL TO anon USING (true) WITH CHECK (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'outfit_feedback' AND policyname = 'allow_all_outfit_feedback') THEN
+      CREATE POLICY allow_all_outfit_feedback ON outfit_feedback FOR ALL TO anon USING (true) WITH CHECK (true);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'item_scores' AND policyname = 'allow_all_item_scores') THEN
+      CREATE POLICY allow_all_item_scores ON item_scores FOR ALL TO anon USING (true) WITH CHECK (true);
     END IF;
   END$$;
 `
