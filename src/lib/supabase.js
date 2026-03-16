@@ -8,7 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     storageKey: 'outfitr-auth',
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
   },
 })
 

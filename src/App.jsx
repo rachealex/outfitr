@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from './lib/supabase'
 import Nav from './components/Nav'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import Today from './pages/Today'
 import Closet from './pages/Closet'
 import History from './pages/History'
@@ -94,6 +95,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('today')
   const [showSettings, setShowSettings] = useState(false)
   const [session, setSession] = useState(undefined) // undefined = loading, null = logged out
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
 
   useEffect(() => {
     // Get initial session
@@ -101,9 +103,17 @@ export default function App() {
       setSession(session)
     })
 
-    // Listen for auth changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
+    // Listen for auth changes — intercept PASSWORD_RECOVERY event
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setSession(session)
+        setIsPasswordRecovery(true)
+      } else {
+        setSession(session)
+        if (event === 'SIGNED_IN' && isPasswordRecovery) {
+          // Don't clear recovery mode on the sign-in that comes with recovery
+        }
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -116,6 +126,11 @@ export default function App() {
         <div className="spinner" />
       </div>
     )
+  }
+
+  // Password recovery flow — user clicked the reset link in email
+  if (isPasswordRecovery) {
+    return <ResetPassword onComplete={() => setIsPasswordRecovery(false)} />
   }
 
   // Not authenticated — show login screen

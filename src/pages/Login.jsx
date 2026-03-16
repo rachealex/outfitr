@@ -28,7 +28,9 @@ export default function Login() {
     setError(null)
     setLoading(true)
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email)
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'https://outfitr-swart.vercel.app',
+      })
       if (error) throw error
       setResetSent(true)
     } catch (err) {
