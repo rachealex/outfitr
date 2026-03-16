@@ -71,7 +71,15 @@ export default function Nav({ activeTab, onTabChange, onSettingsOpen }) {
       </nav>
 
       {/* ── MOBILE top header ── */}
-      <header className="md:hidden fixed top-0 left-0 right-0 z-50 bg-charcoal border-b border-white/10 h-14 flex items-center justify-between px-5">
+      {/* paddingTop = safe-area-inset-top (status bar) + 14px content padding */}
+      {/* height is auto so it grows with the safe area on notched iPhones     */}
+      <header
+        className="md:hidden fixed top-0 left-0 right-0 z-50 bg-charcoal border-b border-white/10 flex items-center justify-between px-5"
+        style={{
+          paddingTop: 'calc(env(safe-area-inset-top) + 0.875rem)',
+          paddingBottom: '0.875rem',
+        }}
+      >
         <span className="font-serif text-gold text-2xl tracking-wide">Outfitr</span>
         <button
           onClick={() => setDrawerOpen(true)}
@@ -82,8 +90,8 @@ export default function Nav({ activeTab, onTabChange, onSettingsOpen }) {
         </button>
       </header>
 
-      {/* Spacer so page content clears the fixed mobile header */}
-      <div className="h-14 md:hidden" />
+      {/* Spacer — matches header height: safe-area-inset-top + 3.5rem (56px) */}
+      <div className="md:hidden" style={{ height: 'calc(env(safe-area-inset-top) + 3.5rem)' }} />
 
       {/* ── DRAWER backdrop ── */}
       {drawerOpen && (
@@ -100,8 +108,14 @@ export default function Nav({ activeTab, onTabChange, onSettingsOpen }) {
         }`}
         style={{ zIndex: 60 }}
       >
-        {/* Drawer header */}
-        <div className="flex items-center justify-between px-5 h-14 border-b border-white/8 shrink-0">
+        {/* Drawer header — same safe-area padding as the main header */}
+        <div
+          className="flex items-center justify-between px-5 border-b border-white/8 shrink-0"
+          style={{
+            paddingTop: 'calc(env(safe-area-inset-top) + 0.875rem)',
+            paddingBottom: '0.875rem',
+          }}
+        >
           <span className="font-serif text-gold text-xl tracking-wide">Menu</span>
           <button
             onClick={() => setDrawerOpen(false)}
