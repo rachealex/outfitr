@@ -46,7 +46,7 @@ export default function Nav({ activeTab, onTabChange, onSettingsOpen }) {
       {/* ── DESKTOP top nav ── */}
       <nav className="hidden md:flex fixed top-0 left-0 right-0 z-50 bg-charcoal border-b border-white/10 h-14 items-center px-6 justify-between">
         <div className="flex items-center gap-1">
-          <span className="font-serif text-gold text-xl mr-6 tracking-wide">Outfitr</span>
+          <span className="font-serif text-ivory text-xl mr-6 tracking-wide">Outfitr</span>
           {desktopTabs.map(tab => (
             <button
               key={tab.id}
@@ -80,7 +80,7 @@ export default function Nav({ activeTab, onTabChange, onSettingsOpen }) {
           paddingBottom: '0.875rem',
         }}
       >
-        <span className="font-serif text-gold text-2xl tracking-wide">Outfitr</span>
+        <span className="font-serif text-ivory text-2xl tracking-wide">Outfitr</span>
         <button
           onClick={() => setDrawerOpen(true)}
           className="text-ivory text-2xl w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/5 transition-colors"
