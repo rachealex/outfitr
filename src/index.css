@@ -30,8 +30,8 @@
 }
 .spinner {
   animation: spin 0.8s linear infinite;
-  border: 2px solid rgba(198, 169, 106, 0.3);
-  border-top-color: #C6A96A;
+  border: 2px solid rgba(45, 90, 61, 0.3);
+  border-top-color: #2D5A3D;
   border-radius: 50%;
   width: 32px;
   height: 32px;

@@ -129,7 +129,7 @@ export default function StyleProfile() {
             onClick={() => setActiveSection(s)}
             className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition-all duration-200 shrink-0 ${
               activeSection === s
-                ? 'bg-gold text-ink font-semibold'
+                ? 'bg-gold text-white font-semibold'
                 : 'border border-white/10 text-muted hover:text-ivory'
             }`}
           >
@@ -430,7 +430,7 @@ export default function StyleProfile() {
               <button
                 onClick={addWishItem}
                 disabled={addingWish || !newWish.name.trim()}
-                className="w-full bg-gold text-ink font-semibold py-2.5 rounded-xl text-sm transition-all hover:bg-gold/90 disabled:opacity-50"
+                className="w-full bg-gold text-white font-semibold py-2.5 rounded-xl text-sm transition-all hover:bg-gold/90 disabled:opacity-50"
               >
                 {addingWish ? 'Adding…' : '+ Add to List'}
               </button>

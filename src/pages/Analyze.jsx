@@ -243,7 +243,7 @@ export default function Analyze() {
         <button
           onClick={handleAnalyze}
           disabled={loading || !imageFile}
-          className="w-full bg-gold hover:bg-gold/90 text-ink font-semibold py-3 rounded-xl transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full bg-gold hover:bg-gold/90 text-white font-semibold py-3 rounded-xl transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
         >
           {loading ? (
             <>

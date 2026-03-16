@@ -341,7 +341,7 @@ export default function Today() {
               onClick={() => setMood(m)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${
                 mood === m
-                  ? 'bg-gold text-ink border-gold'
+                  ? 'bg-gold text-white border-gold'
                   : 'border-white/10 text-muted hover:text-ivory hover:border-white/30'
               }`}
             >
@@ -355,7 +355,7 @@ export default function Today() {
       <button
         onClick={handleGenerate}
         disabled={generating || loadingWeather}
-        className="w-full bg-gold hover:bg-gold/90 text-ink font-semibold py-3 rounded-xl mb-6 transition-all duration-200 disabled:opacity-50"
+        className="w-full bg-gold hover:bg-gold/90 text-white font-semibold py-3 rounded-xl mb-6 transition-all duration-200 disabled:opacity-50"
       >
         {generating ? 'Generating…' : '✦ Generate Outfit'}
       </button>

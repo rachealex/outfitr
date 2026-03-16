@@ -34,7 +34,7 @@ function CategoryPill({ name, count, active, onClick }) {
       onClick={onClick}
       className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border ${
         active
-          ? 'bg-gold text-ink border-gold'
+          ? 'bg-gold text-white border-gold'
           : 'border-white/10 text-muted hover:text-ivory hover:border-white/30'
       }`}
     >
@@ -299,7 +299,7 @@ function AddItemModal({ onClose, onAdded }) {
           <button
             type="submit"
             disabled={saving}
-            className="w-full bg-gold text-ink font-semibold py-3 rounded-xl transition-all duration-200 hover:bg-gold/90 disabled:opacity-50"
+            className="w-full bg-gold text-white font-semibold py-3 rounded-xl transition-all duration-200 hover:bg-gold/90 disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Add to Closet'}
           </button>
@@ -376,7 +376,7 @@ export default function Closet() {
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="bg-gold text-ink px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gold/90 transition-all duration-200"
+            className="bg-gold text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gold/90 transition-all duration-200"
           >
             + Add Item
           </button>

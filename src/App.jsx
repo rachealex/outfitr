@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
+import { supabase } from './lib/supabase'
 import Nav from './components/Nav'
+import Login from './pages/Login'
 import Today from './pages/Today'
 import Closet from './pages/Closet'
 import History from './pages/History'
@@ -18,6 +20,11 @@ function SettingsModal({ onClose }) {
 
   function handleSave() {
     localStorage.setItem('anthropic_api_key', apiKey)
+    onClose()
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
     onClose()
   }
 
@@ -48,7 +55,7 @@ function SettingsModal({ onClose }) {
           <div className="flex gap-2">
             <button
               onClick={handleSave}
-              className="flex-1 bg-gold text-ink font-semibold py-2.5 rounded-xl text-sm hover:bg-gold/90 transition-all"
+              className="flex-1 bg-gold text-white font-semibold py-2.5 rounded-xl text-sm hover:bg-gold/90 transition-all"
             >
               Save
             </button>
@@ -57,6 +64,14 @@ function SettingsModal({ onClose }) {
               className="flex-1 border border-white/10 text-muted py-2.5 rounded-xl text-sm hover:text-ivory transition-all"
             >
               Cancel
+            </button>
+          </div>
+          <div className="border-t border-white/5 pt-4">
+            <button
+              onClick={handleSignOut}
+              className="w-full border border-rust/30 text-rust/80 hover:text-rust hover:border-rust/60 py-2.5 rounded-xl text-sm transition-all"
+            >
+              Sign Out
             </button>
           </div>
         </div>
@@ -78,9 +93,34 @@ const PAGES = {
 export default function App() {
   const [activeTab, setActiveTab] = useState('today')
   const [showSettings, setShowSettings] = useState(false)
+  const [session, setSession] = useState(undefined) // undefined = loading, null = logged out
 
-  function handleTabChange(tab) {
-    setActiveTab(tab)
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+    })
+
+    // Listen for auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // Loading state while checking session
+  if (session === undefined) {
+    return (
+      <div className="min-h-screen bg-ink flex items-center justify-center">
+        <div className="spinner" />
+      </div>
+    )
+  }
+
+  // Not authenticated — show login screen
+  if (!session) {
+    return <Login />
   }
 
   const PageComponent = PAGES[activeTab] || Today
@@ -89,7 +129,7 @@ export default function App() {
     <div className="bg-ink min-h-screen text-ivory">
       <Nav
         activeTab={activeTab}
-        onTabChange={handleTabChange}
+        onTabChange={setActiveTab}
         onSettingsOpen={() => setShowSettings(true)}
       />
 
