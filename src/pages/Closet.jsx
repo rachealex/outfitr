@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { compressImage } from '../lib/imageUtils'
 
@@ -193,7 +194,7 @@ function AddItemModal({ onClose, onAdded }) {
     }
   }
 
-  return (
+  return createPortal(
     /* Overlay — items-end on mobile (bottom sheet), items-center on sm+ (centered dialog) */
     <div
       className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center sm:justify-center sm:p-4"
@@ -322,7 +323,8 @@ function AddItemModal({ onClose, onAdded }) {
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
