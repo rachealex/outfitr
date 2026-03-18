@@ -201,30 +201,36 @@ function AddItemModal({ onClose, onAdded }) {
   }
 
   return createPortal(
-    /*
-     * Mobile: fullscreen panel — fixed top-0 left-0 right-0 bottom-0, bg-charcoal fills
-     *   the entire viewport. No scroll position or parent transform can affect it.
-     * Desktop (sm+): dark backdrop with a centered max-width card.
-     */
+    /* Dark backdrop covers the whole screen */
     <div
-      className="fixed top-0 left-0 right-0 bottom-0 z-50 flex flex-col sm:bg-black/70 sm:items-center sm:justify-center sm:p-4"
+      className="fixed top-0 left-0 right-0 bottom-0 z-50 bg-black/70"
       onClick={onClose}
     >
+      {/* Card: fixed at top 10vh, horizontally centered, never moves with page scroll */}
       <div
-        className="bg-charcoal flex flex-col flex-1 w-full sm:flex-none sm:rounded-xl sm:max-w-md sm:max-h-[90vh] sm:border sm:border-white/10 overflow-hidden"
+        className="bg-charcoal rounded-xl border border-white/10 overflow-hidden flex flex-col"
+        style={{
+          position: 'fixed',
+          top: '10vh',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'calc(100% - 2rem)',
+          maxWidth: '28rem',
+          maxHeight: '80vh',
+          overflowY: 'auto',
+        }}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header — respects iPhone status-bar safe area on mobile */}
+        {/* Header */}
         <div
           className="flex items-center justify-between px-5 border-b border-white/5 flex-shrink-0"
-          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: '1rem' }}
+          style={{ paddingTop: '1rem', paddingBottom: '1rem' }}
         >
           <h2 className="font-serif text-xl text-ivory">Add Item</h2>
           <button onClick={onClose} className="text-muted hover:text-ivory text-lg leading-none">✕</button>
         </div>
 
-        {/* Scrollable form — takes all remaining height on mobile */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-4 pb-safe">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 pb-safe">
           {/* Photo upload */}
           <div>
             <label className="block text-muted text-sm mb-2">Photo</label>
