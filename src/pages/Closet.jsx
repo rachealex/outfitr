@@ -143,6 +143,12 @@ function AddItemModal({ onClose, onAdded }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
+  // Lock background scroll while modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
   function handleChange(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
   }
@@ -359,6 +365,11 @@ export default function Closet() {
     setClothes(c => [newItem, ...c])
   }
 
+  function openAddModal() {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    openAddModal()
+  }
+
   // Category counts
   const categoryCounts = CATEGORIES.reduce((acc, cat) => {
     acc[cat] = clothes.filter(c => c.category === cat).length
@@ -394,7 +405,7 @@ export default function Closet() {
             <p className="text-muted text-sm mt-0.5">{totalCount} items</p>
           </div>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => openAddModal()}
             className="bg-gold text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-gold/90 transition-all duration-200"
           >
             + Add Item
@@ -435,7 +446,7 @@ export default function Closet() {
                 : `No ${activeCategory} yet. Add some!`}
             </p>
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => openAddModal()}
               className="mt-4 text-gold text-sm underline"
             >
               Add Item
