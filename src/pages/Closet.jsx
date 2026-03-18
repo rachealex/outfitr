@@ -143,6 +143,21 @@ function AddItemModal({ onClose, onAdded }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
+  // Write --vh = window.innerHeight * 0.01 so all modal sizing uses the
+  // real visible height instead of Safari's inconsistent 100vh.
+  useEffect(() => {
+    function setVh() {
+      document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`)
+    }
+    setVh()
+    window.addEventListener('resize', setVh)
+    window.addEventListener('scroll', setVh)
+    return () => {
+      window.removeEventListener('resize', setVh)
+      window.removeEventListener('scroll', setVh)
+    }
+  }, [])
+
   // Lock background scroll while modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -201,36 +216,44 @@ function AddItemModal({ onClose, onAdded }) {
   }
 
   return createPortal(
-    /* Dark backdrop covers the whole screen */
-    <div
-      className="fixed top-0 left-0 right-0 bottom-0 z-50 bg-black/70"
-      onClick={onClose}
-    >
-      {/* Card: fixed at top 10vh, horizontally centered, never moves with page scroll */}
+    <>
+      {/* Backdrop — sized with --vh so it covers exactly the visible viewport */}
       <div
-        className="bg-charcoal rounded-xl border border-white/10 overflow-hidden flex flex-col"
+        className="fixed top-0 left-0 right-0 z-50 bg-black/70"
+        style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
+        onClick={onClose}
+      />
+
+      {/* Sheet — position:fixed bottom:0 so it anchors to the visible bottom edge.
+          translateY animation slides it up from off-screen. */}
+      <div
+        className="slide-up bg-charcoal rounded-t-2xl border-t border-x border-white/10 flex flex-col z-50"
         style={{
           position: 'fixed',
-          top: '10vh',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 'calc(100% - 2rem)',
-          maxWidth: '28rem',
-          maxHeight: '80vh',
-          overflowY: 'auto',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          maxHeight: 'calc(var(--vh, 1vh) * 90)',
         }}
         onClick={e => e.stopPropagation()}
       >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1" aria-hidden="true">
+          <div className="w-10 h-1 bg-white/20 rounded-full" />
+        </div>
+
         {/* Header */}
-        <div
-          className="flex items-center justify-between px-5 border-b border-white/5 flex-shrink-0"
-          style={{ paddingTop: '1rem', paddingBottom: '1rem' }}
-        >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
           <h2 className="font-serif text-xl text-ivory">Add Item</h2>
           <button onClick={onClose} className="text-muted hover:text-ivory text-lg leading-none">✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 pb-safe">
+        {/* Scrollable form body */}
+        <form
+          onSubmit={handleSubmit}
+          className="p-5 space-y-4 overflow-y-auto pb-safe"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
           {/* Photo upload */}
           <div>
             <label className="block text-muted text-sm mb-2">Photo</label>
@@ -332,7 +355,7 @@ function AddItemModal({ onClose, onAdded }) {
           </button>
         </form>
       </div>
-    </div>,
+    </>,
     document.body
   )
 }
