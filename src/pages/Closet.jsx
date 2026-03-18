@@ -201,54 +201,51 @@ function AddItemModal({ onClose, onAdded }) {
   }
 
   return createPortal(
-    /* Overlay — items-end on mobile (bottom sheet), items-center on sm+ (centered dialog) */
+    /*
+     * Mobile: fullscreen panel — fixed top-0 left-0 right-0 bottom-0, bg-charcoal fills
+     *   the entire viewport. No scroll position or parent transform can affect it.
+     * Desktop (sm+): dark backdrop with a centered max-width card.
+     */
     <div
-      className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center sm:justify-center sm:p-4"
+      className="fixed top-0 left-0 right-0 bottom-0 z-50 flex flex-col sm:bg-black/70 sm:items-center sm:justify-center sm:p-4"
       onClick={onClose}
     >
       <div
-        /* Bottom sheet on mobile: full width, rounded top corners, slides up.
-           Desktop: max-width card, fully rounded, centered. */
-        className="slide-up bg-charcoal w-full sm:max-w-md rounded-t-2xl sm:rounded-xl border border-white/10 border-b-0 sm:border-b flex flex-col"
-        style={{ maxHeight: 'min(92dvh, 92vh)' }}
+        className="bg-charcoal flex flex-col flex-1 w-full sm:flex-none sm:rounded-xl sm:max-w-md sm:max-h-[90vh] sm:border sm:border-white/10 overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        {/* Drag handle — visual affordance on mobile */}
-        <div className="flex justify-center pt-3 pb-1 sm:hidden" aria-hidden="true">
-          <div className="w-10 h-1 bg-white/20 rounded-full" />
-        </div>
-
-        {/* Sticky header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
+        {/* Header — respects iPhone status-bar safe area on mobile */}
+        <div
+          className="flex items-center justify-between px-5 border-b border-white/5 flex-shrink-0"
+          style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)', paddingBottom: '1rem' }}
+        >
           <h2 className="font-serif text-xl text-ivory">Add Item</h2>
           <button onClick={onClose} className="text-muted hover:text-ivory text-lg leading-none">✕</button>
         </div>
 
-        {/* Scrollable form body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto overscroll-contain pb-safe">
+        {/* Scrollable form — takes all remaining height on mobile */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-4 pb-safe">
           {/* Photo upload */}
           <div>
             <label className="block text-muted text-sm mb-2">Photo</label>
-            <div className="relative">
-              {photoPreview ? (
-                <div className="relative aspect-[3/2] rounded-xl overflow-hidden bg-ink">
-                  <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => { setPhotoFile(null); setPhotoPreview(null) }}
-                    className="absolute top-2 right-2 bg-black/60 text-ivory text-xs px-2 py-1 rounded-lg"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center gap-2 border-2 border-dashed border-white/10 rounded-xl p-6 cursor-pointer hover:border-gold/40 transition-colors">
-                  <span className="text-2xl">📷</span>
-                  <span className="text-muted text-sm">Tap to upload photo</span>
-                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelect} />
-                </label>
-              )}
-            </div>
+            {photoPreview ? (
+              <div className="relative aspect-[3/2] rounded-xl overflow-hidden bg-ink">
+                <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => { setPhotoFile(null); setPhotoPreview(null) }}
+                  className="absolute top-2 right-2 bg-black/60 text-ivory text-xs px-2 py-1 rounded-lg"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center gap-2 border-2 border-dashed border-white/10 rounded-xl p-6 cursor-pointer hover:border-gold/40 transition-colors">
+                <span className="text-2xl">📷</span>
+                <span className="text-muted text-sm">Tap to upload photo</span>
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelect} />
+              </label>
+            )}
           </div>
 
           {/* Name */}
@@ -366,8 +363,7 @@ export default function Closet() {
   }
 
   function openAddModal() {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-    openAddModal()
+    setShowAddModal(true)
   }
 
   // Category counts
