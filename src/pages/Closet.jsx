@@ -194,16 +194,31 @@ function AddItemModal({ onClose, onAdded }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={onClose}>
+    /* Overlay — items-end on mobile (bottom sheet), items-center on sm+ (centered dialog) */
+    <div
+      className="fixed inset-0 z-50 bg-black/70 flex items-end sm:items-center sm:justify-center sm:p-4"
+      onClick={onClose}
+    >
       <div
-        className="bg-charcoal rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto border border-white/10"
+        /* Bottom sheet on mobile: full width, rounded top corners, slides up.
+           Desktop: max-width card, fully rounded, centered. */
+        className="slide-up bg-charcoal w-full sm:max-w-md rounded-t-2xl sm:rounded-xl border border-white/10 border-b-0 sm:border-b flex flex-col"
+        style={{ maxHeight: 'min(92dvh, 92vh)' }}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-5 border-b border-white/5">
-          <h2 className="font-serif text-xl text-ivory">Add Item</h2>
-          <button onClick={onClose} className="text-muted hover:text-ivory text-lg">✕</button>
+        {/* Drag handle — visual affordance on mobile */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden" aria-hidden="true">
+          <div className="w-10 h-1 bg-white/20 rounded-full" />
         </div>
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+
+        {/* Sticky header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
+          <h2 className="font-serif text-xl text-ivory">Add Item</h2>
+          <button onClick={onClose} className="text-muted hover:text-ivory text-lg leading-none">✕</button>
+        </div>
+
+        {/* Scrollable form body */}
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto overscroll-contain pb-safe">
           {/* Photo upload */}
           <div>
             <label className="block text-muted text-sm mb-2">Photo</label>
@@ -222,8 +237,8 @@ function AddItemModal({ onClose, onAdded }) {
               ) : (
                 <label className="flex flex-col items-center gap-2 border-2 border-dashed border-white/10 rounded-xl p-6 cursor-pointer hover:border-gold/40 transition-colors">
                   <span className="text-2xl">📷</span>
-                  <span className="text-muted text-sm">Click to upload photo</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+                  <span className="text-muted text-sm">Tap to upload photo</span>
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoSelect} />
                 </label>
               )}
             </div>
@@ -238,6 +253,7 @@ function AddItemModal({ onClose, onAdded }) {
               value={form.name}
               onChange={handleChange}
               placeholder="e.g. Black Fitted Blazer"
+              autoComplete="off"
               className="w-full bg-ink border border-white/10 rounded-xl px-4 py-2.5 text-ivory text-sm placeholder-muted focus:outline-none focus:border-gold/50"
             />
           </div>
@@ -264,6 +280,7 @@ function AddItemModal({ onClose, onAdded }) {
               value={form.color}
               onChange={handleChange}
               placeholder="e.g. Deep burgundy"
+              autoComplete="off"
               className="w-full bg-ink border border-white/10 rounded-xl px-4 py-2.5 text-ivory text-sm placeholder-muted focus:outline-none focus:border-gold/50"
             />
           </div>
